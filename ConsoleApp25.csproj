@@ -10,7 +10,7 @@
   <ItemGroup>
     <PackageReference Include="dotConnect.Express.for.MySQL" Version="9.4.235" />
     <PackageReference Include="MySqlConnector" Version="2.4.0" />
-    <PackageReference Include="telegram.bot" Version="22.5.1" />
+    <PackageReference Include="telegram.bot" Version="17.1.0" />
   </ItemGroup>
 
   <ItemGroup>

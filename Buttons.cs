@@ -12,7 +12,7 @@ namespace ConsoleApp25
 {
     internal class Buttons
     {
-        internal static ReplyMarkup? GetTwoButtons(string t1, string t2)
+        internal static IReplyMarkup? GetTwoButtons(string t1, string t2)
         {
             var buttons = new List<List<InlineKeyboardButton>>
             {
@@ -24,7 +24,7 @@ namespace ConsoleApp25
             };
             return new InlineKeyboardMarkup(buttons);
         }
-        internal static ReplyMarkup? GetThreeButtons(string t1, string t2, string t3)
+        internal static IReplyMarkup? GetThreeButtons(string t1, string t2, string t3)
         {
             var buttons = new List<List<InlineKeyboardButton>>
             {

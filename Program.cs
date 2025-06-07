@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using static System.Console;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using MySqlConnector;
+using Telegram.Bot.Types.InputFiles;
 using Telegram.Bot.Types.ReplyMarkups;
-using System.Collections.Generic;
+using MySqlConnector;
 using static ConsoleApp25.Buttons;
 
 namespace ConsoleApp25
@@ -14,6 +15,17 @@ namespace ConsoleApp25
     {
         private const string text1 = "Есть аккаунт"; private const string text2 = "Нет аккаунта";
         private static readonly Dictionary<long, bool> _sentWelcomeMessages = new Dictionary<long, bool>();
+        private static async Task HandleFaqCommand(ITelegramBotClient client, Message message)
+        {
+            await client.SendTextMessageAsync(message.Chat.Id, "Вот ответы на часто задаваемые вопросы:");
+            // Добавьте здесь логику для обработки команды /faq
+        }
+
+        private static async Task HandleClinicsCommand(ITelegramBotClient client, Message message)
+        {
+            await client.SendTextMessageAsync(message.Chat.Id, "Вот список доступных клиник:");
+            // Добавьте здесь логику для обработки команды /clinics
+        }
         static void Main(string[] args)
         {
             #region подключение к бд
@@ -32,17 +44,30 @@ namespace ConsoleApp25
             #endregion
 
             var client = new TelegramBotClient("7603978903:AAEAsYC76L0oIJv6UrEWAc8OQYCDh8GTN0A");
+            // Регистрация команд
+            client.SetMyCommandsAsync(new List<BotCommand>
+            {
+                new BotCommand { Command = "/start", Description = "Начать общение с ботом" },
+                new BotCommand { Command = "/appointment", Description = "Записать на приём" },
+                new BotCommand { Command = "/cancel", Description = "Отменить запись на приём" },
+                new BotCommand { Command = "/clinics", Description = "Список клиник" },
+                new BotCommand { Command = "/info", Description = "Информация о клинике" },
+                new BotCommand { Command = "/doctors", Description = "Список докторов" },
+                new BotCommand { Command = "/faq", Description = "Часто задаваемые вопросы" },
+                new BotCommand { Command = "/help", Description = "Справочная служба" },
+                new BotCommand { Command = "/news", Description = "Новости клиники" },
+                new BotCommand { Command = "/user", Description = "Ваша информация" }
+            });
             client.StartReceiving(Update, Error);
 
             ReadLine();
         }
-
         private static async Task Update(ITelegramBotClient client, Update update, CancellationToken token)
         {
             var message = update.Message;
 
             // Проверяем, отправил ли бот приветствие этому пользователю ранее
-            if (!_sentWelcomeMessages.ContainsKey(message.Chat.Id))
+            if (!_sentWelcomeMessages.ContainsKey(message.Chat.Id)) // Если нет, то...
             {
                 await SendWelcomeMessage(client, message); // Отправляем приветствие
                 _sentWelcomeMessages.Add(message.Chat.Id, true); // Отмечаем, что приветствие отправлено
@@ -53,11 +78,17 @@ namespace ConsoleApp25
             {
                 switch (message.Text.ToLower())
                 {
+                    case "/clinics":
+                        await HandleClinicsCommand(client, message);
+                        break;
+                    case "/faq":
+                        await HandleFaqCommand(client, message);
+                        break;
                     case "здравствуйте":
-                        await client.SendMessage(message.Chat.Id, "Здравствуйте!");
+                        await client.SendTextMessageAsync(message.Chat.Id, "Здравствуйте!");
                         break;
                     case "здрасьте":
-                        await client.SendMessage(message.Chat.Id, "хуясьте");
+                        await client.SendTextMessageAsync(message.Chat.Id, "хуясьте");
                         break;
 
                     default:
@@ -125,7 +156,7 @@ namespace ConsoleApp25
         }
         private static async Task SendWelcomeMessage(ITelegramBotClient client, Message message)
         {
-            await client.SendMessage(
+            await client.SendTextMessageAsync(
                 chatId: message.Chat.Id,
                 text: $"Здравствуйте! Я — Бот, который может:\n\n" +
                       "--Помочь с выбором клиники\n" +
@@ -135,11 +166,25 @@ namespace ConsoleApp25
                       "Вы уже зарегистрированы?",
                 replyMarkup: GetTwoButtons(text1, text2));
         }
+        //private static async Task SendImageToChat(ITelegramBotClient botClient, long chatId)
+        //{
+        //    // Путь к вашему файлу изображения
+        //    string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "unnamed.jpg");
 
+        //    // Получение потока файла
+        //    using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read))
+        //    {
+        //        // Создание InputMediaPhoto объекта с потоком
+        //        InputMediaPhoto media = new(fs);
+
+        //        // Отправляем фото пользователю
+        //        await botClient.SendPhotoAsync(chatId, media);
+        //    }
+        //}
 
         private static Task Error(ITelegramBotClient client, Exception err, CancellationToken ctoken)
         {
-            Console.WriteLine(err.Message);
+            WriteLine(err.Message);
             return Task.CompletedTask;
         }
     }
