@@ -8,7 +8,24 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="dotConnect.Express.for.MySQL" Version="9.4.235" />
+    <PackageReference Include="MySqlConnector" Version="2.4.0" />
     <PackageReference Include="telegram.bot" Version="22.5.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Resource1.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resource1.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resource1.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resource1.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
