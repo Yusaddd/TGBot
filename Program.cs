@@ -65,68 +65,116 @@ namespace ConsoleApp25
         private static async Task Update(ITelegramBotClient client, Update update, CancellationToken token)
         {
             var message = update.Message;
+            //var button = update.CallbackQuery;
 
             // Проверяем, отправил ли бот приветствие этому пользователю ранее
-            if (!_sentWelcomeMessages.ContainsKey(message.Chat.Id)) // Если нет, то...
+            if (!_sentWelcomeMessages.ContainsKey(message?.Chat?.Id ?? 0)) // Если нет, то...
             {
                 await SendWelcomeMessage(client, message); // Отправляем приветствие
-                _sentWelcomeMessages.Add(message.Chat.Id, true); // Отмечаем, что приветствие отправлено
+                _sentWelcomeMessages.Add(message?.Chat?.Id ?? 0, true); // Отмечаем, что приветствие отправлено
             }
+
             // Обработка сообщений и команд
-            if (message.Text != null && !string.IsNullOrWhiteSpace(message.Text))
+            if (message?.Text != null && !string.IsNullOrWhiteSpace(message.Text))
             {
                 // Если пользователь вводит команду
                 if (message.Text.ToLower().Contains("/"))
                 {
                     switch (message.Text.ToLower())
-                        {
-                            case "/appointment":
-                                await AppointmentCommand(client, message);
-                                break;
-                            case "/cancel":
-                                await CancelCommand(client, message);
-                                break;
-                            case "/clinics":
-                                await ClinicsCommand(client, message);
-                                break;
-                            case "/info":
-                                await InfoCommand(client, message);
-                                break;
-                            case "/doctors":
-                                await DoctorsCommand(client, message);
-                                break;
-                            case "/faq":
-                                await FaqCommand(client, message);
-                                break;
-                            case "/help":
-                                await HelpCommand(client, message);
-                                break;
-                            case "/news":
-                                await NewsCommand(client, message);
-                                break;
-                            case "/user":
-                                await UserCommand(client, message);
-                                break;
+                    {
+                        case "/appointment":
+                            await AppointmentCommand(client, message);
+                            break;
+                        case "/cancel":
+                            await CancelCommand(client, message);
+                            break;
+                        case "/clinics":
+                            await ClinicsCommand(client, message);
+                            break;
+                        case "/info":
+                            await InfoCommand(client, message);
+                            break;
+                        case "/doctors":
+                            await DoctorsCommand(client, message);
+                            break;
+                        case "/faq":
+                            await FaqCommand(client, message);
+                            break;
+                        case "/help":
+                            await HelpCommand(client, message);
+                            break;
+                        case "/news":
+                            await NewsCommand(client, message);
+                            break;
+                        case "/user":
+                            await UserCommand(client, message);
+                            break;
 
-                            default:
-                                if (!_sentWelcomeMessages.ContainsKey(message.Chat.Id))
-                                    await client.SendTextMessageAsync(message.Chat.Id, "Мы получили ваше сообщение, отправьте ещё!");
-                                break;
-                        }
+                        default:
+                            if (!_sentWelcomeMessages.ContainsKey(message.Chat.Id))
+                                await client.SendTextMessageAsync(message.Chat.Id, "Мы получили ваше сообщение, отправьте ещё!");
+                            break;
+                    }
                 }
+
+                else if (message.Text.ToLower().Contains("выбрать клинику"))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                    ClinicsCommand(client, message);
+                }
+                else if (message.Text.ToLower().Contains("информация") && message.Text.ToLower().Contains("клинике"))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                    InfoCommand(client, message);
+                }
+                else if (message.Text.ToLower().Contains("записаться на прием") || message.Text.ToLower().Contains("записаться на приём"))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                    AppointmentCommand(client, message);
+                }
+                else if ((message.Text.ToLower().Contains("отменить") && message.Text.ToLower().Contains("прием")) || (message.Text.ToLower().Contains("отменить") && message.Text.ToLower().Contains("приём")))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                    await client.SendTextMessageAsync(message.Chat.Id, "выберите запись, которую хотите отменить:");
+                }
+                else if ((message.Text.ToLower().Contains("докторы")) || (message.Text.ToLower().Contains("докторов")))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+
+                }
+                else if ((message.Text.ToLower().Contains("записаться на прием")) || (message.Text.ToLower().Contains("записаться на приём")))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                }
+                else if ((message.Text.ToLower().Contains("записаться на прием")) || (message.Text.ToLower().Contains("записаться на приём")))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                }
+                else if ((message.Text.ToLower().Contains("записаться на прием")) || (message.Text.ToLower().Contains("записаться на приём")))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                }
+                else if ((message.Text.ToLower().Contains("записаться на прием")) || (message.Text.ToLower().Contains("записаться на приём")))
+                {
+                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
+                }
+
                 // Если пользователь вводит приветствие
                 else if (message.Text.ToLower().Contains("здравствуйте") || message.Text.ToLower().Contains("приветствую") || message.Text.ToLower().Contains("салам алейкум")
                      || message.Text.ToLower().Contains("доброе утро") || message.Text.ToLower().Contains("добрый день") || message.Text.ToLower().Contains("добрый вечер")
                      || message.Text.ToLower().Contains("у меня есть вопрос"))
                 {
+                    // Функция отправки фотографии пользователю
                     string imagePath = Path.Combine(Environment.CurrentDirectory, "котик.jpg");
-                    using (var stream = System.IO.File.OpenRead(imagePath)) 
+                    using (var stream = System.IO.File.OpenRead(imagePath))
                     {
-                        var result = client.SendPhotoAsync(message.Chat.Id, new InputOnlineFile(stream), caption: "йоу").Result; 
+                        var result = client.SendPhotoAsync(message.Chat.Id, new InputOnlineFile(stream), caption: "Держите котика для хорошего настроения <3").Result;
                     }
+
                     await client.SendTextMessageAsync(message.Chat.Id, "Здравствуйте! Могу помочь вам в следующих услугах:",
                         replyMarkup: GetNineButtons(text1, text2, text3, text4, text5, text6, text7, text8, text9));
                 }
+
                 // Если пользователь вводит что-то иное
                 else await client.SendTextMessageAsync(message.Chat.Id, "Простите, я не знаю, что вам на это ответить, я умею общаться только на темы, " +
                     "связанные с клиниками, докторами и прочим.\nПожалуйста, выберите, что вас интересует:",
@@ -134,82 +182,27 @@ namespace ConsoleApp25
             }
             else
             {
-                await client.SendTextMessageAsync(message.Chat.Id, "Пожалуйста, введите не пустое сообщение!");
+                await client.SendTextMessageAsync(message?.Chat?.Id ?? 0, "Пожалуйста, введите не пустое сообщение!");
             }
 
-            //if (update.CallbackQuery != null)
+            //// Обработка inline кнопок
+            //if (button != null)
             //{
-            //    await HandleCallbackQuery(client, update.CallbackQuery);
-            //}
-            //var text = update.Message.Text;
-            //string imagePath = null;
-            //switch (text)
-            //{
-            //    case text1:
-            //        imagePath = Path.Combine(Environment.CurrentDirectory, "unnamed.jpg");
-            //        await client.SendPhoto(message.Chat.Id, imagePath);
-            //        await client.SendMessage(message.Chat.Id, "Отлично! Давайте проведём вход в аккаунт.\nВведите ваш логин");
-
-            //        await client.SendMessage(message.Chat.Id, "Введите ваш пароль");
-
-            //        break;
-            //    case text2:
-            //        imagePath = Path.Combine(Environment.CurrentDirectory, "unnamed.jpg");
-            //        await client.SendPhoto(message.Chat.Id, imagePath);
-            //        await client.SendMessage(message.Chat.Id, "Супер! Давайте проведём регистрацию.\nВведите ваш логин");
-
-            //        await client.SendMessage(message.Chat.Id, "Введите ваш пароль");
-
-            //        break;
-            //}
-
-            //switch (update.Type)
-            //{
-            //    case Telegram.Bot.Types.Enums.UpdateType.Message:
-
-            //break;
-            //}
-
-            //// обработка фото, пока отвергает
-            //if (message.Photo != null)
-            //{
-            //    await client.SendMessage(message.Chat.Id, "Отправь документом");
-            //    return;
-            //}
-
-            //// скачивание и отправка обратно документа
-            //if (message.Document != null)
-            //{
-            //    await client.SendMessage(message.Chat.Id, "Скачиваю документ");
-            //    var fileID = update.Message.Document.FileId;
-            //    var fileInfo = await client.GetFile(fileID);
-            //    var filePath = fileInfo.FilePath;
-
-            //    string destinationFilePath = $@"{Environment.GetFolderPath(Environment.SpecialFolder.Desktop)}\{message.Document.FileName}";
-            //    await using FileStream fileStream = System.IO.File.OpenWrite(filePath);
-            //    await client.DownloadFile(filePath, fileStream);
-            //    fileStream.Close();
-
-            //    //// тут ошибка, хотя делал всё по видео, хз почему так
-            //    //await using Stream stream = System.IO.File.OpenRead(destinationFilePath);
-            //    //InputFile document = new(stream, message.Document.FileName.Replace(".jpg", " (edited).jpg"));
-            //    ////await client.SendDocument(message.Chat.Id, InputStreamFile, caption: "edited file", parseMode: ParseMode.Html);
-            //    //await client.SendDocument(message.Chat.Id, document);
-            //    return;
+            //    if (update.CallbackQuery.Data == reg_text1)
+            //    {
+            //        var result = client.SendTextMessageAsync(button.Message.Chat.Id, "Введите ваш логин и пароль через запятую").Result;
+            //    }
+            //    if (update.CallbackQuery.Data == reg_text2)
+            //    {
+            //        var result = client.SendTextMessageAsync(button.Message.Chat.Id, "Сейчас мы отправим вам форму для регистрации").Result;
+            //    }
+            //    if (update.CallbackQuery.Data == text1)
+            //    {
+            //        var result = client.SendTextMessageAsync(button.Message.Chat.Id, "Ща запишем вас епьа").Result;
+            //    }
             //}
         }
-        //private static async Task HandleCallbackQuery(ITelegramBotClient client, CallbackQuery callbackQuery)
-        //{
-        //    if (callbackQuery.Data == "Есть аккаунт")
-        //    {
-        //        await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, "круто");
-        //    }
-        //    if (callbackQuery.Data == "Нет аккаунта")
-        //    {
-        //        await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, "пфф лох");
-        //    }
-        //}
-        #region команды инлайн клавиатуры
+        #region команды клавиатуры
         private static async Task AppointmentCommand(ITelegramBotClient client, Message message)
         {
             await client.SendTextMessageAsync(message.Chat.Id, "Можно записаться на приём в следующие даты:");
@@ -268,22 +261,6 @@ namespace ConsoleApp25
                       "Вы уже зарегистрированы?",
                 replyMarkup: GetTwoButtons(reg_text1, reg_text2));
         }
-
-        //private static async Task SendImageToChat(ITelegramBotClient botClient, long chatId)
-        //{
-        //    // Путь к вашему файлу изображения
-        //    string imagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "unnamed.jpg");
-
-        //    // Получение потока файла
-        //    using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read))
-        //    {
-        //        // Создание InputMediaPhoto объекта с потоком
-        //        InputMediaPhoto media = new(fs);
-
-        //        // Отправляем фото пользователю
-        //        await botClient.SendPhotoAsync(chatId, media);
-        //    }
-        //}
 
         private static Task Error(ITelegramBotClient client, Exception err, CancellationToken ctoken)
         {
