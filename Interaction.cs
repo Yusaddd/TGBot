@@ -4,7 +4,6 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.InputFiles;
 using MySqlConnector;
 using static ConsoleApp25.Buttons;
-using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ConsoleApp25
 {
@@ -179,7 +178,7 @@ namespace ConsoleApp25
                     if (Step == 4)
                     {
                         // Разделение информации о пользователе
-                        var parts = Info.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        var parts = Info.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
                         var firstName = parts[0];
                         var lastName = parts[1];
                         var phoneNumber = parts[2];
@@ -190,7 +189,8 @@ namespace ConsoleApp25
                         // Создание встречи в таблице appointment
                         await CreateAppointment(userId, Doctor, Date);
 
-                        await client.SendTextMessageAsync(message.Chat.Id, "Запись создана. Могу помочь в следующих услугах");
+                        await client.SendTextMessageAsync(message.Chat.Id, "Запись создана. Могу помочь в следующих услугах",
+                            replyMarkup: GetSevenButtons(text1, text2, text3, text4, text5, text6, text7));
                         IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
                         Step = 1; // возвращаемся на первый шаг
                     }
@@ -223,7 +223,114 @@ namespace ConsoleApp25
                 // Если пользователь хочет отменить запись
                 else if (IsAppointOrWrite == 3)
                 {
+                    // Поиск доктора, выбор даты
+                    if (Step == 1)
+                    {
+                        if (message.Text.ToLower().Contains("алекс"))
+                        {
+                            Doctor = "Алексей Сергеев";
+                            await client.SendTextMessageAsync(message.Chat.Id, "Отлично, ваш врач -- Алексей Сергеев!\n\nВыберите дату, в которую у вас должна быть встреча:",
+                                replyMarkup: GetTenButtons(textDay1, textDay4, textDay7, textDay10, textDay13, textDay16, textDay19, textDay22, textDay25, textBack));
+                            Step = 2;
+                        }
+                        else if (message.Text.ToLower().Contains("ири"))
+                        {
+                            Doctor = "Ирина Петрова";
+                            await client.SendTextMessageAsync(message.Chat.Id, "Отлично, ваш врач -- Ирина Петрова!\n\nВыберите дату, в которую у вас должна быть встреча:",
+                                replyMarkup: GetTenButtons(textDay2, textDay5, textDay8, textDay11, textDay14, textDay17, textDay20, textDay23, textDay26, textBack));
+                            Step = 2;
+                        }
+                        else if (message.Text.ToLower().Contains("оль"))
+                        {
+                            Doctor = "Ольга Иванова";
+                            await client.SendTextMessageAsync(message.Chat.Id, "Отлично, ваш врач -- Ольга Иванова!\n\nВыберите дату, в которую у вас должна быть встреча:",
+                                replyMarkup: GetTenButtons(textDay3, textDay6, textDay9, textDay12, textDay15, textDay18, textDay21, textDay24, textDay27, textBack));
+                            Step = 2;
+                        }
+                        else if (!message.Text.ToLower().Contains("назад"))
+                        {
+                            await client.SendTextMessageAsync(message.Chat.Id, "Введите доктора для нахождения записи", replyMarkup: GetFourButtons(textIP, textAS, textOI, textBack));
+                        }
+                        else
+                        {
+                            await client.SendTextMessageAsync(message.Chat.Id, "Как скажете! Могу помочь вам в следующих услугах:",
+                                replyMarkup: GetSevenButtons(text1, text2, text3, text4, text5, text6, text7));
+                            Doctor = null;
+                            IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
+                            Step = 1; // возвращаемся на первый шаг
+                        }
+                    }
+                    // Поиск даты, ввод инфо о пользователе
+                    if (Step == 2)
+                    {
+                        if (message.Text.ToLower().Contains("назад"))
+                        {
+                            await client.SendTextMessageAsync(message.Chat.Id, "Выберите дату, в которую у вас должна быть встреча:");
+                            Step = 1; // возвращаемся на первый шаг
+                        }
+                        else if (dateArray.Contains(message.Text))
+                        {
+                            Date = ParseDateTime(message.Text);
 
+                            await client.SendTextMessageAsync(message.Chat.Id, $"Отлично, дата встречи -- {message.Text}!\n\nВведите, пожалуйста, Ваше имя, фамилию и номер телефона через пробел",
+                                replyMarkup: GetOneButton(textBack));
+                            Step = 3;
+                        }
+                        else
+                        {
+                            await client.SendTextMessageAsync(message.Chat.Id, "Выберите дату, в которую врач должен провести встречу");
+                        }
+                    }
+                    // Поиск инфо о пользователе, переход к вводу данных в бд
+                    if (Step == 3)
+                    {
+                        var tmp = await client.GetUpdatesAsync();
+                        var userInput = tmp.First().Message;
+
+                        if (userInput.Text.ToLower().Contains("назад"))
+                        {
+                            Step = 2; // возвращаемся на второй шаг
+                        }
+                        else
+                        {
+                            var parts = userInput.Text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            if (parts.Length != 3)
+                            {
+                                await client.SendTextMessageAsync(message.Chat.Id, "Введите верные данные в правильном порядке");
+                            }
+                            else
+                            {
+                                Info = userInput.Text;
+                                Step = 4;
+                            }
+                        }
+                    }
+                    // Ввод данных в бд
+                    if (Step == 4)
+                    {
+                        // Разделение информации о пользователе
+                        var parts = Info.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
+                        var firstName = parts[0];
+                        var lastName = parts[1];
+                        var phoneNumber = parts[2];
+
+                        // Id пользователя в таблице user
+                        var userId = await GetUserId(firstName, lastName, phoneNumber);
+
+                        // Поиск встречи в таблице appointment
+                        var appointmentId = await FindAppointment(Doctor, userId, Date);
+                        if (appointmentId == -1)
+                        {
+                            await client.SendTextMessageAsync(message.Chat.Id, "Нет записей на отмену.");
+                            return;
+                        }
+
+                        await UpdateAppointmentStatus(appointmentId, "отменён");
+
+                        await client.SendTextMessageAsync(message.Chat.Id, "Запись отменена. Могу помочь в следующих услугах");
+                        IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
+                        Step = 1; // возвращаемся на первый шаг
+                    }
                 }
                 // Если пользователь вводит команду
                 else if (message.Text.ToLower().Contains("/"))
@@ -353,8 +460,6 @@ namespace ConsoleApp25
             //}
         }
 
-        
-
         #region команды клавиатуры
         private static async Task AppointmentCommand(ITelegramBotClient client, Message message)
         {
@@ -365,8 +470,10 @@ namespace ConsoleApp25
         }
         private static async Task CancelCommand(ITelegramBotClient client, Message message)
         {
-            await client.SendTextMessageAsync(message.Chat.Id, "Выберите запланированный приём на отмену записи:");
-            // Добавьте здесь логику для обработки команды /cancel
+            _ = DoctorsCommand(client, message);
+            await Task.Delay(5300); // Задержка в 5.3 секунды
+            await client.SendTextMessageAsync(message.Chat.Id, "У какого врача вы записаны на приём?", replyMarkup: GetThreeButtons(textIP, textAS, textOI));
+            (IsAppointOrWrite, Step) = (3, 1); // отметили, что работаем с отменой встречи, начинаем с первого шага
         }
         private static async Task ClinicsCommand(ITelegramBotClient client, Message message)
         {
@@ -451,7 +558,7 @@ namespace ConsoleApp25
         private static async Task WriteCommand(ITelegramBotClient client, Message message)
         {
             _ = DoctorsCommand(client, message);
-            await Task.Delay(1300); // Задержка в 1.3 секунды
+            await Task.Delay(5300); // Задержка в 5.3 секунды
             await client.SendTextMessageAsync(message.Chat.Id, "Какому врачу вы желаете написать?", replyMarkup: GetThreeButtons(textIP, textAS, textOI));
             IsAppointOrWrite = 2; // отметили, что работаем с написанием врачу
         }
@@ -521,6 +628,25 @@ namespace ConsoleApp25
 
             return Convert.ToInt32(userId);
         }
+        private static async Task<int> GetUserId(string firstName, string lastName, string phoneNumber)
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"SELECT id FROM user WHERE first_name = @FirstName AND last_name = @LastName AND phone_number = @PhoneNumber";
+            using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@FirstName", firstName);
+            command.Parameters.AddWithValue("@LastName", lastName);
+            command.Parameters.AddWithValue("@PhoneNumber", phoneNumber);
+
+            using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                return reader.GetInt32("id");
+            }
+
+            return -1; // Возвращаем -1, если пользователь не найден
+        }
         private static async Task<int> GetDoctorId(string doctorName)
         {
             using var connection = new MySqlConnection(connectionString);
@@ -553,13 +679,45 @@ namespace ConsoleApp25
             const string sql = @"INSERT INTO appointment (clinic_id, doctor_id, user_id, date, time, status, created_at) 
                         VALUES (@ClinicId, @DoctorId, @UserId, @Date, @Time, @Status, @CreatedAt)";
             using var command = new MySqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@ClinicId", 1); // Предположим, что клиника с ID 1
+            command.Parameters.AddWithValue("@ClinicId", 1);
             command.Parameters.AddWithValue("@DoctorId", doctorId);
             command.Parameters.AddWithValue("@UserId", userId);
             command.Parameters.AddWithValue("@Date", date.Date);
             command.Parameters.AddWithValue("@Time", date.TimeOfDay);
             command.Parameters.AddWithValue("@Status", "назначен");
             command.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
+
+            await command.ExecuteNonQueryAsync();
+        }
+        private static async Task<int> FindAppointment(string doctor, int userId, DateTime date)
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"SELECT id FROM appointment 
+                        WHERE doctor_id = @DoctorId AND user_id = @UserId AND date = @Date AND status = 'назначен'";
+            using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@DoctorId", await GetDoctorId(doctor));
+            command.Parameters.AddWithValue("@UserId", userId);
+            command.Parameters.AddWithValue("@Date", date.Date);
+
+            using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                return reader.GetInt32("id");
+            }
+
+            return -1; // Возвращаем -1, если запись не найдена
+        }
+        private static async Task UpdateAppointmentStatus(int appointmentId, string status)
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"UPDATE appointment SET status = @Status WHERE id = @AppointmentId";
+            using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@Status", status);
+            command.Parameters.AddWithValue("@AppointmentId", appointmentId);
 
             await command.ExecuteNonQueryAsync();
         }

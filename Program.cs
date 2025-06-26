@@ -1,13 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using static System.Console;
+﻿using static System.Console;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.InputFiles;
-using Telegram.Bot.Types.ReplyMarkups;
 using MySqlConnector;
-using static ConsoleApp25.Buttons;
 
 namespace ConsoleApp25
 {
