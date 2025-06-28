@@ -342,6 +342,8 @@ namespace ConsoleApp25
                             if (appointmentId == -1)
                             {
                                 await client.SendTextMessageAsync(message.Chat.Id, "Нет записей на отмену.");
+                                IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
+                                Step = 1; // возвращаемся на первый шаг
                                 return;
                             }
 
@@ -353,6 +355,7 @@ namespace ConsoleApp25
                         }
                     }
                 }
+
                 // Если пользователь вводит команду
                 else if (message.Text.ToLower().Contains("/"))
                 {
@@ -488,7 +491,7 @@ namespace ConsoleApp25
         private static async Task CancelCommand(ITelegramBotClient client, Message message)
         {
             _ = DoctorsCommand(client, message);
-            await Task.Delay(5300); // Задержка в 5.3 секунды
+            await Task.Delay(2300); // Задержка в 2.3 секунды
             await client.SendTextMessageAsync(message.Chat.Id, "У какого врача вы записаны на приём?", replyMarkup: GetThreeButtons(textIP, textAS, textOI));
             (IsAppointOrWrite, Step) = (3, 1); // отметили, что работаем с отменой встречи, начинаем с первого шага
         }
@@ -648,7 +651,7 @@ namespace ConsoleApp25
         private static async Task WriteCommand(ITelegramBotClient client, Message message)
         {
             _ = DoctorsCommand(client, message);
-            await Task.Delay(5300); // Задержка в 5.3 секунды
+            await Task.Delay(2300); // Задержка в 2.3 секунды
             await client.SendTextMessageAsync(message.Chat.Id, "Какому врачу вы желаете написать?", replyMarkup: GetThreeButtons(textIP, textAS, textOI));
             IsAppointOrWrite = 2; // отметили, что работаем с написанием врачу
         }
