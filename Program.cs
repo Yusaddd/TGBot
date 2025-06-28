@@ -7,7 +7,7 @@ namespace ConsoleApp25
 {
     internal class Program
     {
-        static void Main(string[] args) // Начало работы, ввод токена, подключение к бд
+        static async Task Main(string[] args) // Начало работы, ввод токена, подключение к бд
         {
             #region подключение к бд
             string connectionString;
@@ -24,6 +24,10 @@ namespace ConsoleApp25
             }
             cnn.Close();
             WriteLine("Выход из БД");
+            #endregion
+            #region старт асинхронной проверки приёмов
+            var cancellationTokenSource = new CancellationTokenSource();
+            var backgroundJobTask = Interaction.StartBackgroundJob(cancellationTokenSource.Token);
             #endregion
 
             var client = new TelegramBotClient("7603978903:AAEAsYC76L0oIJv6UrEWAc8OQYCDh8GTN0A");
@@ -42,6 +46,8 @@ namespace ConsoleApp25
             client.StartReceiving(Interaction.Update, Interaction.Error);
 
             ReadLine();
+            cancellationTokenSource.Cancel();
+            await backgroundJobTask;
         }
     }
 }

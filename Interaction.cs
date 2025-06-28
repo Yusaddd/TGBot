@@ -4,6 +4,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.InputFiles;
 using MySqlConnector;
 using static ConsoleApp25.Buttons;
+using Telegram.Bot.Types.Enums;
 
 namespace ConsoleApp25
 {
@@ -16,6 +17,7 @@ namespace ConsoleApp25
         private static string Doctor { get; set; } // сохранение врача
         private static string Info { get; set; } // сохранение имени, фамилии и номера телефона пользователя
         private static DateTime Date { get; set; } // сохранение даты проведения встречи
+        private static int newsId = 1; // сохранение id новости
         #endregion
 
         #region текстовые константы
@@ -29,12 +31,11 @@ namespace ConsoleApp25
         private const string text7 = "Справочная служба";
 
         // первое сообщение
-        private const string hello_text = "Здравствуйте! Я — Бот, который может:\n\n" +
-                      "--Помочь с выбором клиники\n" +
-                      "--Записать на прием к врачу\n" +
-                      "--Задать вопрос напрямую врачу и получить от него ответ\n" +
-                      "--Делиться свежими новостями из мира медицины\n\n" +
-                      "Мои услуги:";
+        private const string hello_text = "Клиника \"Мед-вышка\" – современный многопрофильный медицинский центр," +
+            " предоставляющий широкий спектр амбулаторных услуг: консультации врачей различных специальностей" +
+            " (терапевты, педиатры, узкие специалисты), диагностику (УЗИ, ЭКГ, лабораторные анализы)," +
+            " физиотерапию и косметологические процедуры. Клиника ориентирована на комфорт пациентов" +
+            " и оперативное обслуживание, стремится минимизировать время ожидания и бумажную волокиту.";
 
         // конст для врачей (написать)
         private const string textAS = "Алексей Сергеев"; private const string textOI = "Ольга Иванова"; private const string textIP = "Ирина Петрова";
@@ -70,8 +71,13 @@ namespace ConsoleApp25
         #region для первого сообщения
         private static async Task SendWelcomeMessage(ITelegramBotClient client, Message message)
         {
-            await client.SendTextMessageAsync( message.Chat.Id, hello_text,
+            string imagePath = Path.Combine(Environment.CurrentDirectory,$"первое сообщение.jpg");
+            using (var stream = System.IO.File.OpenRead(imagePath))
+            {
+                var caption = hello_text;
+                await client.SendPhotoAsync(message.Chat.Id, new InputOnlineFile(stream), caption: caption,
                 replyMarkup: GetSevenButtons(text1, text2, text3, text4, text5, text6, text7));
+            }
         }
         private static readonly Dictionary<long, bool> _sentWelcomeMessages = new Dictionary<long, bool>();
         #endregion
@@ -82,6 +88,7 @@ namespace ConsoleApp25
             // Проверяем, отправил ли бот приветствие этому пользователю ранее
             if (!_sentWelcomeMessages.ContainsKey(message?.Chat?.Id ?? 0)) // Если нет, то...
             {
+
                 await SendWelcomeMessage(client, message); // Отправляем приветствие
                 _sentWelcomeMessages.Add(message?.Chat?.Id ?? 0, true); // Отмечаем, что приветствие отправлено
             }
@@ -134,7 +141,7 @@ namespace ConsoleApp25
                     {
                         if (message.Text.ToLower().Contains("назад"))
                         {
-                            await client.SendTextMessageAsync(message.Chat.Id, "На этой неделе можно встретиться с врачом в следующие дни:");
+                            IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
                             Step = 1; // возвращаемся на первый шаг
                         }
                         else if (dateArray.Contains(message.Text))
@@ -177,22 +184,29 @@ namespace ConsoleApp25
                     // Ввод данных в бд
                     if (Step == 4)
                     {
-                        // Разделение информации о пользователе
-                        var parts = Info.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
-                        var firstName = parts[0];
-                        var lastName = parts[1];
-                        var phoneNumber = parts[2];
+                        if (message.Text.ToLower().Contains("назад"))
+                        {
+                            Step = 3; // возвращаемся на первый шаг
+                        }
+                        else
+                        {
+                            // Разделение информации о пользователе
+                            var parts = Info.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            var firstName = parts[0];
+                            var lastName = parts[1];
+                            var phoneNumber = parts[2];
 
-                        // Создание пользователя в таблице user
-                        var userId = await CreateUser(firstName, lastName, phoneNumber);
+                            // Создание пользователя в таблице user
+                            var userId = await CreateUser(firstName, lastName, phoneNumber);
 
-                        // Создание встречи в таблице appointment
-                        await CreateAppointment(userId, Doctor, Date);
+                            // Создание встречи в таблице appointment
+                            await CreateAppointment(userId, Doctor, Date);
 
-                        await client.SendTextMessageAsync(message.Chat.Id, "Запись создана. Могу помочь в следующих услугах",
-                            replyMarkup: GetSevenButtons(text1, text2, text3, text4, text5, text6, text7));
-                        IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
-                        Step = 1; // возвращаемся на первый шаг
+                            await client.SendTextMessageAsync(message.Chat.Id, "Запись создана. Могу помочь в следующих услугах",
+                                replyMarkup: GetSevenButtons(text1, text2, text3, text4, text5, text6, text7));
+                            IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
+                            Step = 1; // возвращаемся на первый шаг
+                        }
                     }
                 }
 
@@ -308,28 +322,35 @@ namespace ConsoleApp25
                     // Ввод данных в бд
                     if (Step == 4)
                     {
-                        // Разделение информации о пользователе
-                        var parts = Info.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
-                        var firstName = parts[0];
-                        var lastName = parts[1];
-                        var phoneNumber = parts[2];
-
-                        // Id пользователя в таблице user
-                        var userId = await GetUserId(firstName, lastName, phoneNumber);
-
-                        // Поиск встречи в таблице appointment
-                        var appointmentId = await FindAppointment(Doctor, userId, Date);
-                        if (appointmentId == -1)
+                        if (message.Text.ToLower().Contains("назад"))
                         {
-                            await client.SendTextMessageAsync(message.Chat.Id, "Нет записей на отмену.");
-                            return;
+                            Step = 3; // возвращаемся на первый шаг
                         }
+                        else
+                        {
+                            // Разделение информации о пользователе
+                            var parts = Info.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            var firstName = parts[0];
+                            var lastName = parts[1];
+                            var phoneNumber = parts[2];
 
-                        await UpdateAppointmentStatus(appointmentId, "отменён");
+                            // Id пользователя в таблице user
+                            var userId = await GetUserId(firstName, lastName, phoneNumber);
 
-                        await client.SendTextMessageAsync(message.Chat.Id, "Запись отменена. Могу помочь в следующих услугах");
-                        IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
-                        Step = 1; // возвращаемся на первый шаг
+                            // Поиск встречи в таблице appointment
+                            var appointmentId = await FindAppointment(Doctor, userId, Date);
+                            if (appointmentId == -1)
+                            {
+                                await client.SendTextMessageAsync(message.Chat.Id, "Нет записей на отмену.");
+                                return;
+                            }
+
+                            await UpdateAppointmentStatus(appointmentId, "отменён");
+
+                            await client.SendTextMessageAsync(message.Chat.Id, "Запись отменена. Могу помочь в следующих услугах");
+                            IsAppointOrWrite = -1; // Меняем значение, чтобы выйти из условия
+                            Step = 1; // возвращаемся на первый шаг
+                        }
                     }
                 }
                 // Если пользователь вводит команду
@@ -371,7 +392,6 @@ namespace ConsoleApp25
                 // Инфо о клинике
                 else if (message.Text.ToLower().Contains("инфо") && message.Text.ToLower().Contains("клиник"))
                 {
-                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                     _ = ClinicsCommand(client, message);
                 }
 
@@ -379,21 +399,18 @@ namespace ConsoleApp25
                 else if (message.Text.ToLower().Contains("записать") && (message.Text.ToLower().Contains("прием")
                     || message.Text.ToLower().Contains("приём") || message.Text.ToLower().Contains("к доктор")))
                 {
-                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                     _ = AppointmentCommand(client, message);
                 }
 
                 // Отменить приём
                 else if (message.Text.ToLower().Contains("отменить") && (message.Text.ToLower().Contains("прием") || message.Text.ToLower().Contains("приём")))
                 {
-                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                     _ = CancelCommand(client, message);
                 }
 
                 // Выдать список докторов
                 else if (message.Text.ToLower().Contains("доктор"))
                 {
-                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                     await client.SendTextMessageAsync(message.Chat.Id, "Информация о докторах в нашей клинике:");
                     _ = DoctorsCommand(client, message);
                 }
@@ -401,14 +418,12 @@ namespace ConsoleApp25
                 // Справочная служба
                 else if (message.Text.ToLower().Contains("справочн") || message.Text.ToLower().Contains("служб"))
                 {
-                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                     _ = HelpCommand(client, message);
                 }
 
                 // Новости клиники
                 else if (message.Text.ToLower().Contains("новост") && message.Text.ToLower().Contains("клиник"))
                 {
-                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                     _ = NewsCommand(client, message);
                 }
 
@@ -418,11 +433,10 @@ namespace ConsoleApp25
                     || message.Text.ToLower().Contains("серг") || message.Text.ToLower().Contains("ири") || message.Text.ToLower().Contains("петр") 
                     || message.Text.ToLower().Contains("ол") || message.Text.ToLower().Contains("иван")))
                 {
-                    await client.DeleteMessageAsync(message.Chat.Id, message.MessageId);
                     _ = WriteCommand(client, message);
                 }
                 #endregion
-
+                #region приветствие + иное
                 // Если пользователь вводит приветствие
                 else if (message.Text.ToLower().Contains("здравствуйте") || message.Text.ToLower().Contains("приветствую") || message.Text.ToLower().Contains("салам алейкум")
                      || message.Text.ToLower().Contains("доброе утро") || message.Text.ToLower().Contains("добрый день") || message.Text.ToLower().Contains("добрый вечер")
@@ -443,6 +457,7 @@ namespace ConsoleApp25
                 else await client.SendTextMessageAsync(message.Chat.Id, "Простите, я не знаю, что вам на это ответить, я умею общаться только на темы, " +
                     "связанные с клиниками, докторами и прочим.\nПожалуйста, выберите, что вас интересует:",
                     replyMarkup: GetSevenButtons(text1, text2, text3, text4, text5, text6, text7));
+                #endregion
             }
             else
             {
@@ -458,6 +473,8 @@ namespace ConsoleApp25
             //        _ = client.SendTextMessageAsync(button.Message.Chat.Id, "ПОЛУЧИЛООООСЬ");
             //    }
             //}
+            CheckAppointments(client);
+            //NewsCommandWithTask(client, message);
         }
 
         #region команды клавиатуры
@@ -541,19 +558,92 @@ namespace ConsoleApp25
                 {
                     var caption = $"Имя: {firstName} {lastName}\nСпециальность: {specialty}\nEmail: {email}\nЦены: {priceList}";
                     await client.SendPhotoAsync(message.Chat.Id, new InputOnlineFile(stream), caption: caption);
-        }
+                }
             }
             connection.Close(); WriteLine("Выход из БД");
         }
         private static async Task HelpCommand(ITelegramBotClient client, Message message)
         {
-            await client.SendTextMessageAsync(message.Chat.Id, "Справочная служба:");
-            // Добавьте здесь логику для обработки команды /help
+            string pathToPdf = Path.Combine(Environment.CurrentDirectory, "Справочная-служба.pdf");
+            using (var stream = System.IO.File.OpenRead(pathToPdf))
+            {
+                var inputFile = new InputOnlineFile(stream, "application/pdf");
+
+                await client.SendDocumentAsync(
+                    chatId: message.Chat.Id,
+                    document: inputFile,
+                    caption: "Справочная служба");
+            }
         }
         private static async Task NewsCommand(ITelegramBotClient client, Message message)
         {
-            await client.SendTextMessageAsync(message.Chat.Id, "Новости клиники:");
-            // Добавьте здесь логику для обработки команды /news
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"SELECT content FROM news";
+            using var command = new MySqlCommand(sql, connection);
+            using var reader = await command.ExecuteReaderAsync();
+
+            var news = new List<string>();
+            while (await reader.ReadAsync())
+            {
+                news.Add(reader.GetString("content"));
+            }
+
+            if (news.Any())
+            {
+                if (newsId > news.Count)
+                {
+                    newsId = 1; // Переходим снова к первой новости, если достигли конца списка
+                }
+
+                if (newsId == 1)
+                {
+                    await client.SendTextMessageAsync(message.Chat.Id, news[newsId - 1]);
+                }
+                else if (newsId == 2)
+                {
+                    string imagePath = Path.Combine(Environment.CurrentDirectory, "новость 2.jpg");
+                    using (var stream = System.IO.File.OpenRead(imagePath))
+                    {
+                        await client.SendPhotoAsync(message.Chat.Id, new InputOnlineFile(stream), caption: news[newsId - 1]);
+                    }
+                }
+
+                newsId++; // Переключаемся на следующую новость
+            }
+            else
+            {
+                await client.SendTextMessageAsync(message.Chat.Id, "Новостей пока нет.");
+            }
+        }
+        private static async Task NewsCommandWithTask(ITelegramBotClient client, Message message)
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            const string sql = @"SELECT content FROM news";
+            using var command = new MySqlCommand(sql, connection);
+            using var reader = await command.ExecuteReaderAsync();
+
+            var news = new List<string>();
+            while (await reader.ReadAsync())
+            {
+                news.Add(reader.GetString("content"));
+            }
+
+            // Первая новость через 5 минут
+            await Task.Delay(60000 * 5);
+            await client.SendTextMessageAsync(message.Chat.Id, news[0]);
+
+            // Вторая новость через 10 минут
+            await Task.Delay(60000 * 5); // Дополнительные 5 минут после первой новости
+            string imagePath = Path.Combine(Environment.CurrentDirectory, "новость 2.jpg");
+            using (var stream = System.IO.File.OpenRead(imagePath))
+            {
+                await client.SendPhotoAsync(message.Chat.Id, new InputOnlineFile(stream), caption: news[1]);
+            }
+            Task.Delay(-1);
         }
         private static async Task WriteCommand(ITelegramBotClient client, Message message)
         {
@@ -720,6 +810,73 @@ namespace ConsoleApp25
             command.Parameters.AddWithValue("@AppointmentId", appointmentId);
 
             await command.ExecuteNonQueryAsync();
+        }
+        public static async Task CheckAndUpdateAppointments()
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            // SQL-запрос выбирает записи, срок которых прошел
+            const string sql = @"UPDATE appointment SET status='завершен' WHERE date <= CURDATE() AND time <= CURTIME() AND status <> 'завершен'";
+
+            using var command = new MySqlCommand(sql, connection);
+            await command.ExecuteNonQueryAsync();
+        }
+        private static async Task CheckAppointments(ITelegramBotClient client)
+        {
+            using var connection = new MySqlConnection(connectionString);
+            await connection.OpenAsync();
+
+            // Получаем все записи со статусом "назначен"
+            const string sql = @"SELECT id, user_id, date, time FROM appointment WHERE status = 'назначен'";
+            using var command = new MySqlCommand(sql, connection);
+            using var reader = await command.ExecuteReaderAsync();
+
+            while (await reader.ReadAsync())
+            {
+                var appointmentId = reader.GetInt32("id");
+                var userId = reader.GetInt32("user_id");
+                var appointmentDate = reader.GetDateTime("date");
+                var appointmentTime = reader.GetTimeSpan("time");
+
+                // Вычисляем время до начала записи
+                var appointmentDateTime = appointmentDate.Add(appointmentTime);
+                var timeToAppointment = appointmentDateTime - DateTime.Now;
+
+                // Проверяем, нужно ли отправить уведомление
+                if (timeToAppointment.TotalDays <= 1 && timeToAppointment.TotalDays > 0)
+                {
+                    await client.SendTextMessageAsync(userId, "У вас запись через 1 день.");
+                }
+                else if (timeToAppointment.TotalHours <= 3 && timeToAppointment.TotalHours > 0)
+                {
+                    await client.SendTextMessageAsync(userId, "У вас запись через 3 часа.");
+                }
+                else if (timeToAppointment.TotalHours <= 1 && timeToAppointment.TotalHours > 0)
+                {
+                    await client.SendTextMessageAsync(userId, "У вас запись через 1 час.");
+                }
+                else if (timeToAppointment.TotalMinutes <= 15 && timeToAppointment.TotalMinutes > 0)
+                {
+                    await client.SendTextMessageAsync(userId, "У вас запись через 15 минут.");
+                }
+                else if (timeToAppointment.TotalMinutes == 0)
+                {
+                    // Обновляем статус встречи на "завершён"
+                    const string updateSql = @"UPDATE appointment SET status = 'завершён' WHERE id = @appointmentId";
+                    using var updateCommand = new MySqlCommand(updateSql, connection);
+                    updateCommand.Parameters.AddWithValue("@appointmentId", appointmentId);
+                    await updateCommand.ExecuteNonQueryAsync();
+                }
+            }
+        }
+        public static async Task StartBackgroundJob(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await CheckAndUpdateAppointments();
+                await Task.Delay(TimeSpan.FromMinutes(5), cancellationToken);
+            }
         }
         #endregion
         internal static Task Error(ITelegramBotClient client, Exception err, CancellationToken ctoken)
